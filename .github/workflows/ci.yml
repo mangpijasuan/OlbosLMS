@@ -75,14 +75,23 @@ jobs:
 
       # Fails if the schema and the migrations have diverged — a migration that
       # was never generated is found here rather than at deploy time.
+      #
+      # The shadow database must be a throwaway, never the database the tests
+      # use. Prisma replays the migrations into the shadow and drops
+      # `_prisma_migrations` when it is done, so pointing it at the test
+      # database leaves every table in place with no migration history, and the
+      # next `migrate deploy` fails with P3005. Diff first, then deploy, so the
+      # test database is left complete.
       - name: Validate migrations
         run: |
-          pnpm --filter @olbos/database exec prisma migrate deploy
+          PGPASSWORD=olbos psql -h localhost -U olbos -d olbos_test \
+            -v ON_ERROR_STOP=1 -c 'CREATE DATABASE olbos_migration_shadow;'
           pnpm --filter @olbos/database exec prisma migrate diff \
             --from-migrations prisma/migrations \
             --to-schema-datamodel prisma/schema.prisma \
-            --shadow-database-url "$DATABASE_URL" \
+            --shadow-database-url "postgresql://olbos:olbos@localhost:5432/olbos_migration_shadow?schema=public" \
             --exit-code
+          pnpm --filter @olbos/database exec prisma migrate deploy
 
       - name: Integration tests (includes mandatory tenant-isolation suite)
         run: pnpm test:integration
