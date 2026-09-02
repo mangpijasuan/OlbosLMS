@@ -2,7 +2,7 @@
   "name": "olbos-lms",
   "version": "0.1.0",
   "private": true,
-  "description": "OLBOS LMS \u2014 multi-tenant Learning, Training & Safety Compliance platform",
+  "description": "OLBOS LMS — multi-tenant Learning, Training & Safety Compliance platform",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=20.11.0"
@@ -54,6 +54,9 @@
       "sharp",
       "@tailwindcss/oxide",
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "deepmerge-ts": ">=8.0.0"
+    }
   }
 }

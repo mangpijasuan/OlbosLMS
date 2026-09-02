@@ -1,4 +1,3 @@
- 
 import { randomUUID } from 'node:crypto';
 import { hashPassword } from '@olbos/auth';
 import { PLAN_CATALOGUE } from '@olbos/billing';

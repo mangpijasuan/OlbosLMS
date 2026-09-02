@@ -61,6 +61,29 @@ webhooks, invoices.
 - PostgreSQL row-level security as defence-in-depth
 - Malware scanning implementation
 
+## Known dependency advisories
+
+`pnpm audit --prod --audit-level high` is clean and is the blocking CI gate:
+nothing a deployed process loads carries a high or critical advisory.
+`deepmerge-ts` reached production through `prisma > @prisma/config` and is
+pinned forward via a `pnpm.overrides` entry.
+
+Advisories remaining in **test and build tooling** are reported by CI as a
+warning rather than a failure, because none is reachable by a deployed process:
+
+| Package   | Advisory                                                       | Clearing it needs                |
+| --------- | -------------------------------------------------------------- | -------------------------------- |
+| `vitest`  | RCE / arbitrary file read when the API or UI server listens    | Major upgrade 2.1.8 → ≥3.2.6     |
+| `vite`    | `server.fs.deny` bypass on Windows alternate paths             | Follows the vitest upgrade       |
+| `postcss` | Arbitrary file read via attacker-controlled `sourceMappingURL` | Bump once Tailwind's tree allows |
+
+The vitest upgrade is deliberately not bundled with the initial build: 3.x
+replaces `vitest.workspace.ts` with in-config `projects`, and that migration
+should land as a change whose test run can be judged on its own rather than
+inside a 196-file diff. Both vitest advisories require the test server to be
+listening while the developer browses a hostile page; CI runs the suite
+headless and does not start it.
+
 ## Phase alignment
 
 | Phase               | Status                                                                        |

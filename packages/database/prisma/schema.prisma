@@ -1145,6 +1145,10 @@ model Course {
   @@unique([organizationId, slug])
   @@index([organizationId, status])
   @@index([organizationId, type])
+  // Backs the global search endpoint. Declared here, not only in the migration,
+  // so `prisma migrate diff --exit-code` has nothing to report; `map` matches
+  // the name the migration already created.
+  @@index([title(ops: raw("gin_trgm_ops"))], map: "courses_title_trgm_idx", type: Gin)
   @@map("courses")
 }
 
@@ -1883,6 +1887,7 @@ model TrainingRecord {
   @@index([organizationId, courseId, completedAt])
   @@index([organizationId, expiresAt])
   @@index([organizationId, requirementId])
+  @@index([courseTitle(ops: raw("gin_trgm_ops"))], map: "training_records_course_title_trgm_idx", type: Gin)
   @@map("training_records")
 }
 
