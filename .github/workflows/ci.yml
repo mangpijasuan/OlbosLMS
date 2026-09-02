@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Test-only values. Real secrets never appear in CI configuration.
+  SESSION_SECRET: ci-session-secret-0000000000000000000000000000
+  CERTIFICATE_SIGNING_SECRET: ci-certificate-secret-1111111111111111111111
+  DATABASE_URL: postgresql://olbos:olbos@localhost:5432/olbos_test?schema=public
+  TEST_DATABASE_URL: postgresql://olbos:olbos@localhost:5432/olbos_test?schema=public
+
+jobs:
+  quality:
+    name: Format, lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Packages must be built before anything type-checks against them.
+      - run: pnpm --filter @olbos/database run generate
+      - run: pnpm build
+
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+
+  integration:
+    name: Integration and tenant isolation
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: olbos
+          POSTGRES_PASSWORD: olbos
+          POSTGRES_DB: olbos_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U olbos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @olbos/database run generate
+      - run: pnpm build
+
+      # Fails if the schema and the migrations have diverged — a migration that
+      # was never generated is found here rather than at deploy time.
+      - name: Validate migrations
+        run: |
+          pnpm --filter @olbos/database exec prisma migrate deploy
+          pnpm --filter @olbos/database exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "$DATABASE_URL" \
+            --exit-code
+
+      - name: Integration tests (includes mandatory tenant-isolation suite)
+        run: pnpm test:integration
+
+      - name: Seed and sweep must be idempotent
+        run: |
+          pnpm db:seed
+          pnpm --filter @olbos/worker exec tsx --conditions development \
+            src/main.ts --once 2>&1 | tee sweep.log
+          # A sweep over freshly seeded data must report zero status changes.
+          # Anything else means the seed and the requirement engine disagree.
+          grep -q "0 status change" sweep.log
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @olbos/database run generate
+      - run: pnpm build
+      - run: pnpm --filter @olbos/web run build
+
+  security:
+    name: Dependency and secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Advisory data changes daily; a new critical advisory should fail the
+      # build, but a moderate one should not block an unrelated fix.
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high
+
+      - name: Check for committed secrets
+        run: |
+          if git grep -nIE '(SESSION_SECRET|CERTIFICATE_SIGNING_SECRET|ANTHROPIC_API_KEY|STRIPE_SECRET_KEY)=[A-Za-z0-9_/+-]{16,}' \
+               -- ':!.env.example' ':!.github/workflows/*'; then
+            echo "::error::A secret appears to be committed."
+            exit 1
+          fi
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env is tracked by git."
+            exit 1
+          fi
