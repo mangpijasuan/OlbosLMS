@@ -43,10 +43,13 @@ export default defineWorkspace([
       setupFiles: ['tests/integration/setup.ts'],
       hookTimeout: 120_000,
       testTimeout: 60_000,
-      // Integration tests share one Postgres database; run them serially.
+      // Integration tests share one Postgres database, so they must not run
+      // concurrently. `singleFork` is what enforces that: every file runs in
+      // one forked process, sequentially. (`fileParallelism` used to be set
+      // here too, but it is a root-level option and not valid in a project
+      // config — the repaired root tsconfig now catches that.)
       pool: 'forks',
       poolOptions: { forks: { singleFork: true } },
-      fileParallelism: false,
     },
   },
 ]);
