@@ -16,7 +16,7 @@ database, because they truncate between suites.
 
 ```
 Unit          445 tests   ~3s
-Integration   127 tests   ~11s (against PostgreSQL 16)
+Integration   131 tests   ~11s (against PostgreSQL 16)
 ```
 
 Every number in the documentation was taken from a run, not estimated.

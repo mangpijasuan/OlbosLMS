@@ -64,7 +64,7 @@ is compliant shows none of the software that matters.
 ## Verifying
 
 ```bash
-pnpm test:all      # 445 unit + 127 integration (needs PostgreSQL)
+pnpm test:all      # 445 unit + 131 integration (needs PostgreSQL)
 pnpm typecheck
 pnpm lint
 ```
@@ -76,7 +76,7 @@ otherwise.
 ## The three properties that matter
 
 **Tenant isolation.** One database, `organizationId` everywhere, enforced by a
-Prisma client extension in one file and proven by 107 integration tests. A
+Prisma client extension in one file and proven by 111 integration tests. A
 cross-tenant read returns 404, never 403 — a 403 would confirm the resource
 exists. The tenant comes from the session and nowhere else.
 

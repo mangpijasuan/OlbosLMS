@@ -288,6 +288,58 @@ describe('tenant B cannot write into tenant A', () => {
   });
 });
 
+describe('the tenant-owned billing and organization surface', () => {
+  // Added after a review found /billing/subscription reading through the
+  // unscoped client. These endpoints had no coverage at all, which is why the
+  // 127 tests around them stayed green while the rule was broken.
+  it('returns tenant B its own subscription and never tenant A', async () => {
+    const response = await call(app, { url: '/api/v1/billing/subscription', session: bravoOwner });
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json() as {
+      data: { subscription: { status: string; plan: { key: string } } | null };
+    };
+    // Non-null matters: a tenant-scoped read that over-filtered would return
+    // null here and the endpoint would look "safe" while being broken.
+    expect(body.data.subscription).not.toBeNull();
+    expect(body.data.subscription?.status).toBe('ACTIVE');
+    expect(response.body).not.toContain(alpha.organizationId);
+  });
+
+  it('returns tenant B its own organization and never tenant A', async () => {
+    const response = await call(app, { url: '/api/v1/organizations/current', session: bravoOwner });
+    expect(response.statusCode).toBe(200);
+
+    const body = response.json() as { data: { id: string; slug: string } };
+    expect(body.data.id).toBe(bravo.organizationId);
+    expect(body.data.slug).toBe('bravo-co');
+    expect(response.body).not.toContain(alpha.organizationId);
+  });
+
+  it('excludes tenant A from invoices', async () => {
+    const response = await call(app, { url: '/api/v1/billing/invoices', session: bravoOwner });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain(alpha.organizationId);
+  });
+
+  it("scopes an organization settings update to the caller's own tenant", async () => {
+    const response = await call(app, {
+      method: 'PATCH',
+      url: '/api/v1/organizations/current/settings',
+      session: bravoOwner,
+      payload: { certificateDisclaimer: 'Bravo policy text' },
+    });
+    expect(response.statusCode).toBe(200);
+
+    // Tenant A's settings must be untouched by tenant B's write.
+    const alphaOrg = await db().organization.findUnique({
+      where: { id: alpha.organizationId },
+      select: { settings: true },
+    });
+    expect(JSON.stringify(alphaOrg?.settings ?? {})).not.toContain('Bravo policy text');
+  });
+});
+
 describe('certificate verification is public but narrow', () => {
   it('verifies a certificate without any session', async () => {
     const response = await app.inject({

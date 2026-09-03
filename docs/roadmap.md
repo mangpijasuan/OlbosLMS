@@ -7,7 +7,7 @@ source to find out.
 
 | Area                  | State                                                                                                         |
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Multi-tenancy         | Tenant client with query rewriting; 107 integration tests                                                     |
+| Multi-tenancy         | Tenant client with query rewriting; 111 integration tests                                                     |
 | Authentication        | Argon2id, server-side sessions, lockout, reset, change, device list                                           |
 | Authorization         | ~130 permissions, 9 roles, scopes, visibility ladders, explainable decisions                                  |
 | Database              | 76 tables, 2 migrations, append-only audit triggers, seed                                                     |

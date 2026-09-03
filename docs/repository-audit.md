@@ -43,7 +43,7 @@ tests/      cross-package integration and tenant-isolation suites
 
 | Risk                                                                | Mitigation adopted                                                                                                                                                 |
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tenant data leakage — the highest-severity failure for this product | Tenant scoping enforced in one place (`packages/database/src/tenancy.ts`) and proven by 107 integration tests against Postgres                                     |
+| Tenant data leakage — the highest-severity failure for this product | Tenant scoping enforced in one place (`packages/database/src/tenancy.ts`) and proven by 111 integration tests against Postgres                                     |
 | Compliance history being rewritten by a later course edit           | Course versioning plus snapshot fields on training records; append-only audit tables enforced by database triggers                                                 |
 | Misrepresenting regulatory authorisation (§10)                      | `packages/core/src/representation.ts` blocks the claim at course creation and again at publication                                                                 |
 | AI asserting compliance or legal conclusions                        | `packages/ai/src/guardrails.ts` — prompt rules plus an output review that blocks, not merely warns                                                                 |
@@ -54,7 +54,7 @@ tests/      cross-package integration and tenant-isolation suites
 Every claim in these documents was checked against a running system, not
 inferred:
 
-- 445 unit tests and 127 integration tests against a real PostgreSQL database.
+- 445 unit tests and 131 integration tests against a real PostgreSQL database.
 - The API booted and driven end to end with `curl`.
 - The web application built, served, and driven with Playwright across six
   screens and two roles.

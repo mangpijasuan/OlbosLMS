@@ -116,7 +116,7 @@ silently supplying it, which is stronger.
 | Layer            | How it was verified                                       |
 | ---------------- | --------------------------------------------------------- |
 | Domain engines   | 445 unit tests                                            |
-| Tenant isolation | 107 integration tests against PostgreSQL                  |
+| Tenant isolation | 111 integration tests against PostgreSQL                  |
 | API              | Booted; every core flow driven end to end                 |
 | Web              | Built, served, driven with Playwright across 6 screens    |
 | Worker           | Run with `--once`; sweep confirmed idempotent             |

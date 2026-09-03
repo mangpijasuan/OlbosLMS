@@ -26,7 +26,7 @@ pnpm install
 pnpm build            # packages must be built before apps resolve them
 pnpm db:migrate
 pnpm db:seed
-pnpm test:all         # 445 unit + 127 integration; needs PostgreSQL
+pnpm test:all         # 445 unit + 131 integration; needs PostgreSQL
 ```
 
 Integration tests need `TEST_DATABASE_URL` pointing at a throwaway database whose

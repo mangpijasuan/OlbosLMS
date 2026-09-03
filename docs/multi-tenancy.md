@@ -63,9 +63,25 @@ place `forTenant` is called during a request.
 Two escape hatches exist, both deliberate and both narrow:
 
 `getPrismaClient()` returns an unscoped client. It is used for authentication
-before a tenant is known, for the plan catalogue, and by worker sweeps that
-iterate tenants explicitly. Using it inside a request handler is a review
-failure.
+before a tenant is known, by the readiness probe, by the public certificate
+verification endpoint (deliberately cross-tenant, and unauthenticated), and by
+worker sweeps that iterate tenants explicitly.
+
+Using it inside a request handler is a review failure — and is now enforced by
+ESLint rather than by memory. `no-restricted-imports` bans the symbol across
+`apps/api/src/routes/v1/**`, which is exactly the authenticated tenant surface;
+`routes/health.ts` and `routes/public.ts` sit outside it because neither has a
+tenant. The rule was added after a review found `/billing/subscription` reading
+a tenant-owned model through the unscoped client: the value it returned was
+correct, because the `where` was keyed on the session's `organizationId`, but
+the guard's post-read verification was skipped and nothing would have caught a
+later change to that query.
+
+`Organization` is the one model a handler may query that the guard does not
+rewrite: it _is_ the tenant, keyed by `id` rather than `organizationId`, so it
+is deliberately absent from `TENANT_OWNED_MODELS`. Handlers still reach it
+through `request.db`, so that anything tenant-owned added beside it is scoped
+by default.
 
 `purgeOrganization()` in `packages/database/src/maintenance.ts` deletes a tenant
 including its append-only audit trail, for lawful erasure. It requires table
@@ -82,7 +98,7 @@ catalogue.)
 ## Testing
 
 `tests/integration/tenant-isolation.test.ts` — 70 tests at the Prisma layer.
-`tests/integration/api-tenant-isolation.test.ts` — 37 tests at the HTTP layer,
+`tests/integration/api-tenant-isolation.test.ts` — 41 tests at the HTTP layer,
 using the _organization owner_ of tenant B, holding a valid session and CSRF
 token. If the most privileged user in a tenant cannot cross the boundary, no
 weaker role can.

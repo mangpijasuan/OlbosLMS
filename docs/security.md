@@ -141,7 +141,7 @@ audit service, not at each call site.
 | User enumeration      | Identical response and timing for every login failure                |
 | Malicious upload      | Type allowlist, filename sanitising, forced attachment, scanner hook |
 | Privilege escalation  | Role grants require `user:manage_roles`; audited                     |
-| Tenant leakage        | See `multi-tenancy.md`; 107 tests                                    |
+| Tenant leakage        | See `multi-tenancy.md`; 111 tests                                    |
 | Formula injection     | CSV values neutralised                                               |
 
 ## Not yet implemented

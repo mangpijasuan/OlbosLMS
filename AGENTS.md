@@ -70,7 +70,7 @@ Write them. Then verify by running.
 Do not report a feature as working because it compiles. Run it:
 
 ```bash
-pnpm test:all                  # 445 unit + 127 integration
+pnpm test:all                  # 445 unit + 131 integration
 pnpm typecheck && pnpm lint
 pnpm --filter @olbos/api exec tsx --conditions development src/main.ts
 curl -s localhost:4000/readyz

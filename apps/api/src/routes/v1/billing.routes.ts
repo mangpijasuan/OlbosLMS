@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { getPrismaClient } from '@olbos/database';
 import { PLAN_CATALOGUE } from '@olbos/billing';
 import { ok } from '../../lib/http.js';
 
@@ -13,8 +12,6 @@ import { ok } from '../../lib/http.js';
  * "why can't I see the training matrix?" without reading the database.
  */
 export const billingRoutes: FastifyPluginAsync = async (app) => {
-  const prisma = getPrismaClient();
-
   app.get('/billing/plans', async (request) => {
     request.requireAuth();
     return ok(
@@ -40,7 +37,7 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
     const { organizationId, principal, db } = request.requireTenant();
     request.authorize('billing:read');
 
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await db.subscription.findUnique({
       where: { organizationId },
       select: {
         status: true,

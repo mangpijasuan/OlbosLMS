@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { getPrismaClient, type Prisma } from '@olbos/database';
+import { type Prisma } from '@olbos/database';
 import { DEFAULT_WARNING_INTERVALS } from '@olbos/core';
 import { ok, parseBody } from '../../lib/http.js';
 import { diffSnapshots } from '../../services/audit.service.js';
@@ -10,15 +10,21 @@ import { diffSnapshots } from '../../services/audit.service.js';
  *
  * The tenant is always the caller's own: there is no `:organizationId`
  * parameter anywhere in this file, by design.
+ *
+ * `Organization` is the one model the tenant guard cannot scope, because it is
+ * the tenant rather than something a tenant owns — it has an `id`, not an
+ * `organizationId`, so it is deliberately absent from `TENANT_OWNED_MODELS`.
+ * What keeps these handlers safe is that every `where` is keyed on the
+ * `organizationId` resolved from the session. They still query through
+ * `request.db` rather than an unscoped client so that any tenant-owned model
+ * queried here later is guarded by default instead of by whoever notices.
  */
 export const organizationRoutes: FastifyPluginAsync = async (app) => {
-  const prisma = getPrismaClient();
-
   app.get('/organizations/current', async (request) => {
-    const { organizationId } = request.requireTenant();
+    const { organizationId, db } = request.requireTenant();
     request.authorize('organization:read');
 
-    const organization = await prisma.organization.findUnique({
+    const organization = await db.organization.findUnique({
       where: { id: organizationId },
       select: {
         id: true,
@@ -49,7 +55,7 @@ export const organizationRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.patch('/organizations/current', async (request) => {
-    const { organizationId } = request.requireTenant();
+    const { organizationId, db } = request.requireTenant();
     request.authorize('organization:update');
 
     const body = parseBody(
@@ -68,7 +74,7 @@ export const organizationRoutes: FastifyPluginAsync = async (app) => {
       }),
     );
 
-    const before = await prisma.organization.findUnique({
+    const before = await db.organization.findUnique({
       where: { id: organizationId },
       select: {
         name: true,
@@ -80,7 +86,7 @@ export const organizationRoutes: FastifyPluginAsync = async (app) => {
       },
     });
 
-    const organization = await prisma.organization.update({
+    const organization = await db.organization.update({
       where: { id: organizationId },
       data: body,
       select: { id: true, name: true, timezone: true, locale: true, brandColor: true },
@@ -108,10 +114,10 @@ export const organizationRoutes: FastifyPluginAsync = async (app) => {
    * pre-fills them with a claim about what a regulation requires (§14).
    */
   app.get('/organizations/current/settings', async (request) => {
-    const { organizationId } = request.requireTenant();
+    const { organizationId, db } = request.requireTenant();
     request.authorize('organization:manage_settings');
 
-    const organization = await prisma.organization.findUnique({
+    const organization = await db.organization.findUnique({
       where: { id: organizationId },
       select: { settings: true },
     });
@@ -127,7 +133,7 @@ export const organizationRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.patch('/organizations/current/settings', async (request) => {
-    const { organizationId } = request.requireTenant();
+    const { organizationId, db } = request.requireTenant();
     request.authorize('organization:manage_settings');
 
     const body = parseBody(
@@ -139,7 +145,7 @@ export const organizationRoutes: FastifyPluginAsync = async (app) => {
       }),
     );
 
-    const current = await prisma.organization.findUnique({
+    const current = await db.organization.findUnique({
       where: { id: organizationId },
       select: { settings: true },
     });
@@ -150,7 +156,7 @@ export const organizationRoutes: FastifyPluginAsync = async (app) => {
       JSON.stringify({ ...((current?.settings ?? {}) as object), ...body }),
     ) as Prisma.InputJsonObject;
 
-    await prisma.organization.update({
+    await db.organization.update({
       where: { id: organizationId },
       data: { settings: merged },
     });

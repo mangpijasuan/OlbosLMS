@@ -43,6 +43,33 @@ export default tseslint.config(
     },
   },
   {
+    // AGENTS.md states that `getPrismaClient()` in a request handler is a review
+    // failure, but nothing enforced it, and a Copilot review found the rule
+    // already broken in billing.routes.ts. A rule a human has to remember is
+    // not a control.
+    //
+    // Scoped to routes/v1 because that is exactly the authenticated,
+    // tenant-scoped surface. routes/health.ts (a `SELECT 1` readiness probe)
+    // and routes/public.ts (unauthenticated certificate verification, which is
+    // cross-tenant by design) legitimately have no tenant context.
+    files: ['apps/api/src/routes/v1/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@olbos/database',
+              importNames: ['getPrismaClient'],
+              message:
+                'Request handlers must query through `request.db` (the tenant-scoped client). If a model genuinely cannot be tenant-scoped, say why in a comment and keep using request.db.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.ts', '**/*.spec.ts', 'tests/**/*.ts', '**/seed.ts', '**/scripts/**/*.ts'],
     rules: {
       'no-console': 'off',
